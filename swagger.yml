@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+ title: Product Catalog & Search API
+ description: >
+   REST API for Product Catalog, Search, Filtering, and Product Details.
+   Designed for EPIC-02 – Product Catalog & Search.
+ version: 1.0.0
+
+
+servers:
+ - url: /api/v1
+   description: Base API path
+
+
+paths:
+
+
+ /products:
+   get:
+     summary: Product Listing
+     description: >
+       Returns a paginated list of products for a given category.
+       Supports sorting and price filtering.
+     parameters:
+       - name: categoryId
+         in: query
+         required: true
+         schema:
+           type: string
+         description: Category identifier
+
+
+       - name: page
+         in: query
+         required: false
+         schema:
+           type: integer
+           minimum: 1
+           default: 1
+         description: Page number (1-based)
+
+
+       - name: pageSize
+         in: query
+         required: false
+         schema:
+           type: integer
+           default: 12
+           enum: [12]
+         description: Fixed page size
+
+
+       - name: sortBy
+         in: query
+         required: false
+         schema:
+           type: string
+           default: popularity
+           enum: [popularity, price, name]
+         description: Sorting field
+
+
+       - name: sortOrder
+         in: query
+         required: false
+         schema:
+           type: string
+           default: desc
+           enum: [asc, desc]
+         description: Sorting order
+
+
+       - name: minPrice
+         in: query
+         required: false
+         schema:
+           type: number
+           minimum: 0
+         description: Minimum price filter
+
+
+       - name: maxPrice
+         in: query
+         required: false
+         schema:
+           type: number
+           minimum: 0
+         description: Maximum price filter
+
+
+     responses:
+       '200':
+         description: Product list retrieved successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ProductListResponse'
+
+
+       '400':
+         description: Validation error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+
+
+ /products/search:
+   get:
+     summary: Product Search
+     description: >
+       Search products by name, description, or SKU.
+       Minimum search length is 3 characters (API enforced).
+     parameters:
+       - name: query
+         in: query
+         required: true
+         schema:
+           type: string
+           minLength: 3
+         description: Search keyword (≥ 3 characters)
+
+
+       - name: page
+         in: query
+         required: false
+         schema:
+           type: integer
+           minimum: 1
+           default: 1
+
+
+       - name: minPrice
+         in: query
+         required: false
+         schema:
+           type: number
+           minimum: 0
+
+
+       - name: maxPrice
+         in: query
+         required: false
+         schema:
+           type: number
+           minimum: 0
+
+
+     responses:
+       '200':
+         description: Search results retrieved
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ProductListResponse'
+
+
+       '400':
+         description: Invalid search query
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+
+
+ /products/{productId}:
+   get:
+     summary: Product Detail
+     description: Retrieve detailed information for a single product.
+     parameters:
+       - name: productId
+         in: path
+         required: true
+         schema:
+           type: string
+         description: Product identifier
+
+
+     responses:
+       '200':
+         description: Product detail retrieved
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ProductDetailResponse'
+
+
+       '404':
+         description: Product not found
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+
+
+ /categories:
+   get:
+     summary: Category Listing
+     description: >
+       Retrieve all product categories used for catalog navigation.
+       Categories may be hierarchical.
+     responses:
+       '200':
+         description: Categories retrieved successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/CategoryListResponse'
+
+
+components:
+ schemas:
+
+
+   ProductListResponse:
+     type: object
+     properties:
+       data:
+         type: array
+         items:
+           $ref: '#/components/schemas/ProductCard'
+       pagination:
+         $ref: '#/components/schemas/Pagination'
+
+
+   ProductCard:
+     type: object
+     properties:
+       productId:
+         type: string
+       name:
+         type: string
+       imageUrl:
+         type: string
+         nullable: true
+       price:
+         $ref: '#/components/schemas/Price'
+       inStock:
+         type: boolean
+
+
+   ProductDetailResponse:
+     type: object
+     properties:
+       productId:
+         type: string
+       name:
+         type: string
+       sku:
+         type: string
+       price:
+         $ref: '#/components/schemas/Price'
+       description:
+         type: string
+         description: Rich text (HTML)
+       images:
+         type: array
+         items:
+           type: string
+       inventory:
+         $ref: '#/components/schemas/Inventory'
+       uiHints:
+         $ref: '#/components/schemas/UIHints'
+
+
+   CategoryListResponse:
+     type: object
+     properties:
+       data:
+         type: array
+         items:
+           $ref: '#/components/schemas/Category'
+
+
+   Category:
+     type: object
+     properties:
+       categoryId:
+         type: string
+       name:
+         type: string
+       parentCategoryId:
+         type: string
+         nullable: true
+       hasChildren:
+         type: boolean
+
+
+   Price:
+     type: object
+     properties:
+       amount:
+         type: number
+       currency:
+         type: string
+         example: USD
+
+
+   Inventory:
+     type: object
+     properties:
+       inStock:
+         type: boolean
+       quantity:
+         type: integer
+
+
+   UIHints:
+     type: object
+     properties:
+       canAddToCart:
+         type: boolean
+
+
+   Pagination:
+     type: object
+     properties:
+       currentPage:
+         type: integer
+       pageSize:
+         type: integer
+       totalPages:
+         type: integer
+       totalItems:
+         type: integer
+       hasNext:
+         type: boolean
+       hasPrevious:
+         type: boolean
+
+
+   ErrorResponse:
+     type: object
+     properties:
+       error:
+         type: object
+         properties:
+           code:
+             type: string
+           message:
+             type: string
